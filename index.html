@@ -424,6 +424,7 @@ function verwerkOri(e){
   const soort = (e.type === 'deviceorientationabsolute' || e.absolute === true) ? 'absoluut' : 'relatief';
   if (soort === 'relatief' && sensorSoort === 'absoluut') return;
   sensorSoort = soort;
+  stopGenerieke();
   const a = rad(e.alpha), b = rad(e.beta), g = rad(e.gamma);
   const ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b), cg = Math.cos(g), sg = Math.sin(g);
   const x = -ca * sg - sa * sb * cg;   // oost
@@ -460,14 +461,52 @@ async function startCamera(){
     toonMelding('Geen camera beschikbaar, het spel werkt wel.');
   }
   camActief = true;
-  // zonder sensor na 1,5 s: slepen om te draaien
-  setTimeout(() => { if (camActief && !sensorOk) zetSleep(); }, 1500);
+  leesSensorRechten();
+  // geen sensorgegevens na 1,5 s: probeer de nieuwere sensor-API (Chrome/Android); daarna slepen om te draaien
+  setTimeout(async () => {
+    if (!camActief || sensorOk) return;
+    const gestart = await startGenerieke();
+    setTimeout(() => { if (camActief && !sensorOk) zetSleep(gestart); }, 1500);
+  }, 1500);
   nieuweRonde();
   animatie = requestAnimationFrame(tik);
 }
-function zetSleep(){
+/* Tweede route naar de sensor: de Generic Sensor API (Chrome op Android). Geeft een quaternion. */
+let generiek = null;
+async function startGenerieke(){
+  const Klasse = window.AbsoluteOrientationSensor || window.RelativeOrientationSensor;
+  if (!Klasse) return false;
+  try {
+    generiek = new Klasse({ frequency: 30 });
+    generiek.addEventListener('reading', () => {
+      const [x, y, z, w] = generiek.quaternion;
+      // richting van de achtercamera (-z van het toestel) in de wereld: min de derde kolom van de rotatiematrix
+      const ox = -2 * (x * z + w * y), oy = -2 * (y * z - w * x), oz = -(1 - 2 * (x * x + y * y));
+      kijkKoers = (deg(Math.atan2(ox, oy)) + 360) % 360;
+      kijkHelling = deg(Math.asin(klem(oz, -1, 1)));
+      sensorSoort = 'generiek'; sensorOk = true;
+    });
+    generiek.addEventListener('error', e => { sensorFout = e.error && e.error.name || 'fout'; });
+    generiek.start();
+    return true;
+  } catch(e){ sensorFout = e.name || 'fout'; return false; }
+}
+function stopGenerieke(){ if (generiek){ try { generiek.stop(); } catch(e){} generiek = null; } }
+
+/* Leest de sensor-rechten uit (alleen voor de diagnoseregel) */
+let sensorRechten = '', sensorFout = '';
+async function leesSensorRechten(){
+  if (!navigator.permissions) { sensorRechten = 'onbekend'; return; }
+  const uit = [];
+  for (const naam of ['accelerometer', 'gyroscope', 'magnetometer']){
+    try { const r = await navigator.permissions.query({ name: naam }); uit.push(naam[0] + ':' + r.state); } catch(e){ uit.push(naam[0] + ':?'); }
+  }
+  sensorRechten = uit.join(' ');
+}
+
+function zetSleep(generiekGeprobeerd){
   if (sleep) return;
-  toonMelding('Geen bewegingssensor gevonden. Sleep over het scherm om rond te kijken.', 6000);
+  toonMelding('Geen gegevens van de bewegingssensor' + (sensorFout ? ' (' + sensorFout + ')' : '') + '. Android/Chrome: tik op het slotje in de adresbalk, Rechten, en zet Bewegingssensoren aan; of Chrome-instellingen, Site-instellingen, Bewegingssensoren. Tot die tijd: sleep over het scherm om rond te kijken.', 15000);
   let vorige = null;
   sleep = {
     down: e => { vorige = { x: e.clientX, y: e.clientY }; },
@@ -483,6 +522,7 @@ function stopCamera(){
   if (animatie) cancelAnimationFrame(animatie); animatie = null;
   window.removeEventListener('deviceorientationabsolute', verwerkOri, true);
   window.removeEventListener('deviceorientation', verwerkOri, true);
+  stopGenerieke();
   if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; video.srcObject = null; }
   stopToon();
   vogel.style.display = 'none'; Object.values(pijlen).forEach(p => p.style.display = 'none');
@@ -532,7 +572,7 @@ function tik(){
   const zichtbaar = inBeeld && x > marge && x < r.width - marge && y > marge + 60 && y < r.height - 100;
   vogel.style.display = zichtbaar ? 'block' : 'none';
   if (zichtbaar){ vogel.style.left = x + 'px'; vogel.style.top = y + 'px'; }
-  diagnose.textContent = `sensor: ${sensorSoort} · kijk ${Math.round(kijkKoers)}°/${Math.round(kijkHelling)}° · vogel ${Math.round(vogelKoers)}°/${Math.round(vogelHelling)}° · verschil ${Math.round(dK)}°/${Math.round(dH)}° · camera: ${stream ? 'ja' : 'nee'} · geluid: ${ctx ? ctx.state : 'geen'}`;
+  diagnose.textContent = `sensor: ${sensorSoort}${sensorFout ? ' ' + sensorFout : ''} · rechten: ${sensorRechten || '…'} · kijk ${Math.round(kijkKoers)}°/${Math.round(kijkHelling)}° · vogel ${Math.round(vogelKoers)}°/${Math.round(vogelHelling)}° · verschil ${Math.round(dK)}°/${Math.round(dH)}° · camera: ${stream ? 'ja' : 'nee'} · geluid: ${ctx ? ctx.state : 'geen'}`;
   pijlen.links.style.display = !zichtbaar && dK < -10 ? 'grid' : 'none';
   pijlen.rechts.style.display = !zichtbaar && dK > 10 ? 'grid' : 'none';
   pijlen.boven.style.display = !zichtbaar && Math.abs(dK) <= 45 && dH > 10 ? 'grid' : 'none';
