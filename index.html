@@ -528,12 +528,13 @@ function stopCamera(){
   vogel.style.display = 'none'; Object.values(pijlen).forEach(p => p.style.display = 'none');
   warmte.style.boxShadow = 'none';
 }
-let intro = false, introTimer = null;
+let intro = false, introTimer = null, vogelSchaal = 1;   // schaal 1 = dichtbij, 0.4 = ver weg
 function nieuweRonde(){
   gevonden = false;
   $('#gevondenOverlay').classList.remove('actief');
   // eerst zit het vogeltje 3 tellen recht voor je in beeld, daarna vliegt hij weg
   intro = true;
+  vogelSchaal = 1;
   vogelKoers = kijkKoers; vogelHelling = kijkHelling;
   temperatuur.textContent = 'Kijk, daar!';
   startToon('3d');
@@ -546,6 +547,8 @@ function nieuweRonde(){
     vogelKoers = (kijkKoers + kant * (30 + Math.random() * 60) + 360) % 360;
     // en ongeveer op ooghoogte, iets omhoog of omlaag
     vogelHelling = klem(kijkHelling + (Math.random() * 20 - 8), -25, 30);
+    // soms ver weg (klein en wat zachter), soms dichtbij (groot en vol)
+    vogelSchaal = 0.4 + Math.random() * 0.6;
     startTijd = performance.now();
   }, 3000);
 }
@@ -564,7 +567,7 @@ function tik(){
   const hoek = deg(Math.acos(klem(Math.cos(pk) * Math.cos(ph), -1, 1)));
   // dichterbij = harder én sneller piepen; recht ervoor (< 10°) klinkt de toon ononderbroken
   const w = klem(1 - hoek / 90, 0, 1);
-  const sterkte = 0.06 + 0.94 * w * w;
+  const sterkte = (0.06 + 0.94 * w * w) * (0.55 + 0.45 * vogelSchaal);
   let aan = true;
   if (hoek >= 10){
     const periode = 180 + (1 - w) * 1100;                  // ms per piep: 180 ms dichtbij, 1,3 s ver weg
@@ -582,7 +585,7 @@ function tik(){
   const marge = 30;
   const zichtbaar = inBeeld && x > marge && x < r.width - marge && y > marge + 60 && y < r.height - 100;
   vogel.style.display = zichtbaar ? 'block' : 'none';
-  if (zichtbaar){ vogel.style.left = x + 'px'; vogel.style.top = y + 'px'; }
+  if (zichtbaar){ vogel.style.left = x + 'px'; vogel.style.top = y + 'px'; vogel.style.transform = `scale(${vogelSchaal.toFixed(2)})`; }
   diagnose.textContent = `sensor: ${sensorSoort}${sensorFout ? ' ' + sensorFout : ''} · rechten: ${sensorRechten || '…'} · kijk ${Math.round(kijkKoers)}°/${Math.round(kijkHelling)}° · vogel ${Math.round(vogelKoers)}°/${Math.round(vogelHelling)}° · verschil ${Math.round(dK)}°/${Math.round(dH)}° · camera: ${stream ? 'ja' : 'nee'} · geluid: ${ctx ? ctx.state : 'geen'}`;
   pijlen.links.style.display = !zichtbaar && dK < -10 ? 'grid' : 'none';
   pijlen.rechts.style.display = !zichtbaar && dK > 10 ? 'grid' : 'none';
