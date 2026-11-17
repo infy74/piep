@@ -528,7 +528,8 @@ function stopCamera(){
   vogel.style.display = 'none'; Object.values(pijlen).forEach(p => p.style.display = 'none');
   warmte.style.boxShadow = 'none';
 }
-let intro = false, introTimer = null, vogelSchaal = 1;   // schaal 1 = dichtbij, 0.4 = ver weg
+let intro = false, introTimer = null, vogelSchaal = 1, startSchaal = 1;   // schaal 1 = dichtbij, 0.35 = ver weg
+const NADER_MS = 25000;   // tijd waarin het vogeltje van de verte naar dichtbij komt
 function nieuweRonde(){
   gevonden = false;
   $('#gevondenOverlay').classList.remove('actief');
@@ -547,8 +548,9 @@ function nieuweRonde(){
     vogelKoers = (kijkKoers + kant * (30 + Math.random() * 60) + 360) % 360;
     // en ongeveer op ooghoogte, iets omhoog of omlaag
     vogelHelling = klem(kijkHelling + (Math.random() * 20 - 8), -25, 30);
-    // soms ver weg (klein en wat zachter), soms dichtbij (groot en vol)
-    vogelSchaal = 0.4 + Math.random() * 0.6;
+    // begint in de verte (klein en zacht) en komt daarna langzaam naar voren
+    startSchaal = 0.35 + Math.random() * 0.3;
+    vogelSchaal = startSchaal;
     startTijd = performance.now();
   }, 3000);
 }
@@ -558,6 +560,7 @@ function tik(){
   animatie = requestAnimationFrame(tik);
   if (gevonden) return;
   if (intro){ vogelKoers = kijkKoers; vogelHelling = kijkHelling; }   // tijdens de intro blijft hij recht voor je
+  else vogelSchaal = Math.min(1, startSchaal + (1 - startSchaal) * (performance.now() - startTijd) / NADER_MS);   // langzaam naar voren
   const dK = wrap(vogelKoers - kijkKoers);        // + = rechts
   const dH = vogelHelling - kijkHelling;          // + = boven
   // positie voor de 3D-panner: luisteraar kijkt naar -z
