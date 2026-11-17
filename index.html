@@ -445,7 +445,9 @@ async function startCamera(){
   zorgCtx();
   // iOS vraagt expliciet toestemming voor de bewegingssensor, en alleen na een tik
   if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function'){
-    try { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') toonMelding('Geen toegang tot de bewegingssensor.'); } catch(e){}
+    let r = 'fout';
+    try { r = await DeviceOrientationEvent.requestPermission(); } catch(e){}
+    if (r !== 'granted') toonMelding('Geen toegang tot de bewegingssensor (' + r + '). iPhone onthoudt een weigering. Oplossing: verwijder Piep van je beginscherm, open piep in Safari, start het spel en kies "Sta toe". Zet hem daarna opnieuw op je beginscherm.', 15000);
   }
   window.addEventListener('deviceorientationabsolute', verwerkOri, true);
   window.addEventListener('deviceorientation', verwerkOri, true);
