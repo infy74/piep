@@ -199,7 +199,7 @@ input[type=range]::-moz-range-thumb{width:34px;height:34px;border:0;border-radiu
   <div class="overlay" id="startOverlay">
     <svg viewBox="0 0 100 100"><use href="#vogelSymbool"/></svg>
     <h1>Vogeltje zoeken</h1>
-    <p>Het vogeltje begint klein en zacht in de verte, links of rechts van je, en komt langzaam naar voren: steeds groter en harder. Draai met je telefoon, het geluid draait mee. Zie je het vogeltje? Tik erop, het wordt stil en de volgende komt. Oortjes aanbevolen.</p>
+    <p>Het vogeltje begint klein en zacht in de verte, links of rechts van je, en komt langzaam naar voren: steeds groter en harder. Draai met je telefoon, het geluid draait mee. Zie je het vogeltje? Tik erop: hij vliegt terug naar de verte, het geluid zakt, en hij komt opnieuw. Oortjes aanbevolen.</p>
     <div class="knoppen"><button id="camStart" class="primair">Start met camera</button></div>
   </div>
   <div class="overlay" id="gevondenOverlay">
@@ -575,9 +575,8 @@ function stopCamera(){
 }
 let intro = false, introTimer = null, vogelSchaal = 1, startSchaal = 1;   // schaal 1 = dichtbij, 0.35 = ver weg
 const NADER_MS = 25000;   // tijd waarin het vogeltje van de verte naar dichtbij komt
-function nieuweRonde(){
-  gevonden = false; intro = false;
-  $('#gevondenOverlay').classList.remove('actief');
+/* Zet het vogeltje op een nieuwe plek in de verte: klein en zacht, en laat hem opnieuw naderen */
+function verstopVogel(){
   // verstopplek hooguit een halve draai van je af: 30° tot 90° links of rechts van waar je nu kijkt
   const kant = Math.random() < 0.5 ? -1 : 1;
   vogelKoers = (kijkKoers + kant * (30 + Math.random() * 60) + 360) % 360;
@@ -587,6 +586,11 @@ function nieuweRonde(){
   startSchaal = 0.3;
   vogelSchaal = startSchaal;
   startTijd = performance.now();
+}
+function nieuweRonde(){
+  gevonden = false; intro = false;
+  $('#gevondenOverlay').classList.remove('actief');
+  verstopVogel();
   startToon('3d');
 }
 
@@ -633,17 +637,13 @@ function flits(tekst){
   clearTimeout(flitsTimer); flitsTimer = setTimeout(() => f.classList.remove('aan'), 900);
 }
 
-/* Vogeltje gevonden: toon stil, teller omhoog, en meteen door met de volgende */
+/* Vogeltje gevonden: teller omhoog, en hij vliegt meteen terug naar de verte (geluid zakt mee) */
 vogel.addEventListener('click', () => {
-  if (gevonden || intro) return;
-  gevonden = true;
-  stopToon();
+  if (gevonden || intro || !camActief) return;
   aantalGevonden++; toonTeller();
-  vogel.style.display = 'none'; Object.values(pijlen).forEach(p => p.style.display = 'none');
-  warmte.style.boxShadow = 'none'; temperatuur.textContent = '✓';
   flits('Gevonden! ' + aantalGevonden);
   if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
-  setTimeout(() => { if (camActief) nieuweRonde(); }, 1000);
+  verstopVogel();
 });
 
 /* Potje afsluiten: in het dagboek zetten en de uitslag tonen */
@@ -664,7 +664,7 @@ function eindigPotje(toonUitslag){
 }
 $('#camStart').addEventListener('click', startCamera);
 $('#nogEens').addEventListener('click', startCamera);
-$('#camOpnieuw').addEventListener('click', () => { if (camActief) nieuweRonde(); });
+$('#camOpnieuw').addEventListener('click', () => { if (camActief) verstopVogel(); });
 $('#klaar').addEventListener('click', () => kiesScherm('dagboek'));
 $('#camStop').addEventListener('click', () => { if (camActief) eindigPotje(true); });
 
