@@ -90,7 +90,7 @@ input[type=range]::-moz-range-thumb{width:34px;height:34px;border:0;border-radiu
 #camera video,#camera .achtergrond{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 #camera .achtergrond{background:radial-gradient(circle at 50% 30%,#2a3f6a,#0a1220 70%);display:none}
 #camera .warmte{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 0 transparent;transition:box-shadow .2s}
-#vogel{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;display:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,.6));padding:0}
+#vogel{position:absolute;width:190px;height:190px;margin:-95px 0 0 -95px;display:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,.6));padding:0}
 #vogel svg{width:100%;height:100%;animation:wiebel 1.2s ease-in-out infinite}
 @keyframes wiebel{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(3deg)}}
 .pijl{position:absolute;top:50%;width:56px;height:56px;margin-top:-28px;border-radius:50%;background:rgba(15,27,45,.75);
@@ -114,6 +114,8 @@ input[type=range]::-moz-range-thumb{width:34px;height:34px;border:0;border-radiu
 .overlay .knoppen{display:flex;gap:10px;margin-top:8px;width:100%;max-width:320px}
 .overlay .knoppen button{flex:1;padding:14px;border-radius:14px;background:var(--kaart);font-weight:600;box-shadow:inset 0 0 0 1px var(--rand)}
 .overlay .knoppen button.primair{background:var(--accent);color:#1a1200;box-shadow:none}
+.diagnose{position:absolute;left:12px;right:12px;bottom:86px;font-size:11px;color:rgba(238,243,251,.8);text-align:center;
+  text-shadow:0 1px 3px #000;pointer-events:none;font-variant-numeric:tabular-nums}
 .melding{position:absolute;left:16px;right:16px;bottom:100px;background:rgba(255,107,107,.9);color:#fff;padding:12px 14px;border-radius:12px;
   font-size:14px;display:none;text-align:center}
 </style>
@@ -171,6 +173,7 @@ input[type=range]::-moz-range-thumb{width:34px;height:34px;border:0;border-radiu
   <button id="vogel" aria-label="Vogeltje"><svg viewBox="0 0 100 100"><use href="#vogelSymbool"/></svg></button>
   <div class="status"><span class="tag" id="camHz"></span><span class="tag temp" id="temperatuur">…</span></div>
   <div class="melding" id="melding"></div>
+  <div class="diagnose" id="diagnose"></div>
   <div class="onderbalk">
     <button id="camStop">Stop</button>
     <button id="camOpnieuw" class="primair">Verstop opnieuw</button>
@@ -178,7 +181,7 @@ input[type=range]::-moz-range-thumb{width:34px;height:34px;border:0;border-radiu
   <div class="overlay" id="startOverlay">
     <svg viewBox="0 0 100 100"><use href="#vogelSymbool"/></svg>
     <h1>Vogeltje zoeken</h1>
-    <p>Het vogeltje verstopt zich ergens om je heen en fluit jouw piep. Draai met je telefoon: het geluid draait mee en wordt warmer als je in de goede richting kijkt. Zie je het vogeltje? Tik erop en het wordt stil.</p>
+    <p>Het vogeltje verstopt zich links of rechts van je, hooguit een kwartslag draaien. Draai met je telefoon: het geluid draait mee en piept harder en sneller als je dichterbij komt. Zie je het vogeltje? Tik erop en het wordt stil. Oortjes aanbevolen.</p>
     <div class="knoppen"><button id="camStart" class="primair">Start met camera</button></div>
   </div>
   <div class="overlay" id="gevondenOverlay">
@@ -402,13 +405,13 @@ tabAfstemmen.addEventListener('click', () => kiesScherm('afstemmen'));
 tabCamera.addEventListener('click', () => kiesScherm('camera'));
 
 /* ======================= Camera-modus ======================= */
-const video = $('#video'), vogel = $('#vogel'), warmte = $('#warmte'), temperatuur = $('#temperatuur'), melding = $('#melding');
+const video = $('#video'), vogel = $('#vogel'), warmte = $('#warmte'), temperatuur = $('#temperatuur'), melding = $('#melding'), diagnose = $('#diagnose');
 const pijlen = { links: $('#pijlLinks'), rechts: $('#pijlRechts'), boven: $('#pijlBoven'), onder: $('#pijlOnder') };
 const H_FOV = 55, V_FOV = 72;          // geschat beeldveld van de camera (graden), staand
 let stream = null, camActief = false, animatie = null;
 let kijkKoers = 0, kijkHelling = 0;     // waar de camera heen kijkt (graden)
 let vogelKoers = 0, vogelHelling = 0;   // waar het vogeltje zit
-let sensorOk = false, oriEvent = null, gevonden = false, startTijd = 0;
+let sensorOk = false, sensorSoort = 'geen', gevonden = false, startTijd = 0;
 let sleep = null;                       // noodoplossing zonder sensor: slepen draait je rond
 
 const rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI;
@@ -417,6 +420,10 @@ const wrap = d => ((d + 540) % 360) - 180;
 /* Koers/helling uit alpha, beta, gamma: richting van de achtercamera (-z van het toestel) in de wereld. */
 function verwerkOri(e){
   if (e.alpha == null || e.beta == null || e.gamma == null) return;
+  // Sommige toestellen geven alleen de relatieve sensor; zodra de absolute werkt, negeren we de relatieve.
+  const soort = (e.type === 'deviceorientationabsolute' || e.absolute === true) ? 'absoluut' : 'relatief';
+  if (soort === 'relatief' && sensorSoort === 'absoluut') return;
+  sensorSoort = soort;
   const a = rad(e.alpha), b = rad(e.beta), g = rad(e.gamma);
   const ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b), cg = Math.cos(g), sg = Math.sin(g);
   const x = -ca * sg - sa * sb * cg;   // oost
@@ -440,8 +447,8 @@ async function startCamera(){
   if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function'){
     try { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') toonMelding('Geen toegang tot de bewegingssensor.'); } catch(e){}
   }
-  oriEvent = ('ondeviceorientationabsolute' in window) ? 'deviceorientationabsolute' : 'deviceorientation';
-  window.addEventListener(oriEvent, verwerkOri, true);
+  window.addEventListener('deviceorientationabsolute', verwerkOri, true);
+  window.addEventListener('deviceorientation', verwerkOri, true);
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
     video.srcObject = stream; await video.play();
@@ -472,7 +479,8 @@ function zetSleep(){
 function stopCamera(){
   camActief = false; gevonden = false;
   if (animatie) cancelAnimationFrame(animatie); animatie = null;
-  if (oriEvent) window.removeEventListener(oriEvent, verwerkOri, true);
+  window.removeEventListener('deviceorientationabsolute', verwerkOri, true);
+  window.removeEventListener('deviceorientation', verwerkOri, true);
   if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; video.srcObject = null; }
   stopToon();
   vogel.style.display = 'none'; Object.values(pijlen).forEach(p => p.style.display = 'none');
@@ -480,9 +488,11 @@ function stopCamera(){
 }
 function nieuweRonde(){
   gevonden = false;
-  // vogeltje tussen 50° en 310° weg van waar je nu kijkt, dus nooit recht voor je
-  vogelKoers = (kijkKoers + 50 + Math.random() * 260) % 360;
-  vogelHelling = klem(kijkHelling, -20, 20) + (Math.random() * 30 - 10);
+  // vogeltje hooguit een halve draai van je af: 30° tot 90° links of rechts van waar je nu kijkt
+  const kant = Math.random() < 0.5 ? -1 : 1;
+  vogelKoers = (kijkKoers + kant * (30 + Math.random() * 60) + 360) % 360;
+  // en ongeveer op ooghoogte, iets omhoog of omlaag
+  vogelHelling = klem(kijkHelling + (Math.random() * 20 - 8), -25, 30);
   startTijd = performance.now();
   $('#gevondenOverlay').classList.remove('actief');
   startToon('3d');
@@ -499,8 +509,15 @@ function tik(){
   zetPositie(Math.sin(pk) * Math.cos(ph), Math.sin(ph), -Math.cos(pk) * Math.cos(ph));
   // warmte: hoek tussen kijkrichting en vogeltje
   const hoek = deg(Math.acos(klem(Math.cos(pk) * Math.cos(ph), -1, 1)));
-  const w = klem(1 - hoek / 180, 0, 1);
-  if (bronGain) bronGain.gain.setTargetAtTime(0.12 + 0.88 * Math.pow(w, 3), ctx.currentTime, 0.1);
+  // dichterbij = harder én sneller piepen; recht ervoor (< 10°) klinkt de toon ononderbroken
+  const w = klem(1 - hoek / 90, 0, 1);
+  const sterkte = 0.06 + 0.94 * w * w;
+  let aan = true;
+  if (hoek >= 10){
+    const periode = 180 + (1 - w) * 1100;                  // ms per piep: 180 ms dichtbij, 1,3 s ver weg
+    aan = (performance.now() % periode) < periode * 0.5;
+  }
+  if (bronGain) bronGain.gain.setTargetAtTime(aan ? sterkte : 0, ctx.currentTime, 0.02);
   const kleur = hoek < 15 ? '255,138,61' : hoek < 40 ? '255,179,71' : hoek < 90 ? '140,160,200' : '90,169,255';
   warmte.style.boxShadow = `inset 0 0 ${Math.round(20 + 120 * w)}px rgba(${kleur},${(0.25 + 0.6 * w).toFixed(2)})`;
   temperatuur.textContent = hoek < 12 ? '🔥 Heet' : hoek < 30 ? 'Warm' : hoek < 70 ? 'Lauw' : hoek < 120 ? 'Koud' : '🧊 IJskoud';
@@ -509,10 +526,11 @@ function tik(){
   const inBeeld = Math.abs(dK) < 80 && Math.abs(dH) < 80;
   const x = r.width / 2 + Math.tan(pk) / Math.tan(rad(H_FOV / 2)) * r.width / 2;
   const y = r.height / 2 - Math.tan(ph) / Math.tan(rad(V_FOV / 2)) * r.height / 2;
-  const marge = 50;
-  const zichtbaar = inBeeld && x > marge && x < r.width - marge && y > marge + 50 && y < r.height - 110;
+  const marge = 30;
+  const zichtbaar = inBeeld && x > marge && x < r.width - marge && y > marge + 60 && y < r.height - 100;
   vogel.style.display = zichtbaar ? 'block' : 'none';
   if (zichtbaar){ vogel.style.left = x + 'px'; vogel.style.top = y + 'px'; }
+  diagnose.textContent = `sensor: ${sensorSoort} · kijk ${Math.round(kijkKoers)}°/${Math.round(kijkHelling)}° · vogel ${Math.round(vogelKoers)}°/${Math.round(vogelHelling)}° · verschil ${Math.round(dK)}°/${Math.round(dH)}° · camera: ${stream ? 'ja' : 'nee'} · geluid: ${ctx ? ctx.state : 'geen'}`;
   pijlen.links.style.display = !zichtbaar && dK < -10 ? 'grid' : 'none';
   pijlen.rechts.style.display = !zichtbaar && dK > 10 ? 'grid' : 'none';
   pijlen.boven.style.display = !zichtbaar && Math.abs(dK) <= 45 && dH > 10 ? 'grid' : 'none';
@@ -536,11 +554,12 @@ $('#camOpnieuw').addEventListener('click', () => { if (camActief) nieuweRonde();
 $('#klaar').addEventListener('click', () => kiesScherm('afstemmen'));
 $('#camStop').addEventListener('click', () => kiesScherm('afstemmen'));
 
-/* Toon uit als de app naar de achtergrond gaat */
+/* Toon uit als de app naar de achtergrond gaat; in het spel gaat hij weer aan als je terugkomt */
 document.addEventListener('visibilitychange', () => {
   if (document.hidden){
-    if (camActief) kiesScherm('afstemmen');
-    else if (toonAan){ stopToon(); toonVogelKnop(); }
+    if (toonAan){ stopToon(); toonVogelKnop(); }
+  } else if (camActief && !gevonden && !toonAan){
+    startToon('3d');
   }
 });
 
