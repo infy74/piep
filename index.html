@@ -506,7 +506,7 @@ async function leesSensorRechten(){
 
 function zetSleep(generiekGeprobeerd){
   if (sleep) return;
-  toonMelding('Geen gegevens van de bewegingssensor' + (sensorFout ? ' (' + sensorFout + ')' : '') + '. Brave blokkeert sensoren standaard: tik op het icoon links in de adresbalk, Rechten, Bewegingssensoren: Toestaan, en herlaad. Of open deze pagina in Chrome. Tot die tijd: sleep over het scherm om rond te kijken.', 20000);
+  toonMelding('Geen gegevens van de bewegingssensor' + (sensorFout ? ' (' + sensorFout + ')' : '') + '. Brave blokkeert sensoren: tik op het leeuwtje in de adresbalk en zet Shields uit voor deze site, of tik op het icoon links van het adres, Rechten, Bewegingssensoren: Toestaan. Daarna herladen. Of open deze pagina in Chrome. Tot die tijd: sleep over het scherm om rond te kijken.', 20000);
   let vorige = null;
   sleep = {
     down: e => { vorige = { x: e.clientX, y: e.clientY }; },
