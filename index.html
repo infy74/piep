@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Piep</title>
+<meta name="description" content="Zoek en stem je tinnitus-piepfrequentie af, en vind het vogeltje met de camera.">
+<meta name="theme-color" content="#0f1b2d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Piep">
+<style>
+:root{
+  --bg:#0f1b2d; --bg2:#162540; --kaart:#1b2d4c; --rand:#2a4068;
+  --tekst:#eef3fb; --dim:#8fa3c4; --accent:#ffb347; --accent2:#ff8a3d;
+  --groen:#4fd1a1; --rood:#ff6b6b; --blauw:#5aa9ff;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tekst);
+  font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none}
+body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation}
+.tabs{display:flex;gap:6px;padding:10px 16px 0}
+.tabs button{flex:1;padding:12px;border-radius:14px;background:var(--bg2);color:var(--dim);font-weight:600;font-size:15px}
+.tabs button.actief{background:var(--kaart);color:var(--tekst);box-shadow:inset 0 0 0 1px var(--rand)}
+.scherm{display:none;flex:1;flex-direction:column;min-height:0}
+.scherm.actief{display:flex}
+
+/* ---------- Afstemmen ---------- */
+#afstemmen{padding:12px 16px calc(16px + env(safe-area-inset-bottom));overflow-y:auto;gap:14px}
+.freq{display:flex;align-items:baseline;justify-content:center;gap:8px}
+.freq input{width:7ch;font:inherit;font-size:56px;font-weight:700;letter-spacing:-1px;text-align:right;
+  background:none;border:0;color:var(--accent);outline:none;padding:0;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.freq input::-webkit-inner-spin-button{-webkit-appearance:none}
+.freq span{font-size:22px;color:var(--dim)}
+input[type=range]{width:100%;height:44px;margin:0;-webkit-appearance:none;appearance:none;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:linear-gradient(90deg,#3a5a9a,var(--accent))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:34px;height:34px;border-radius:50%;background:#fff;
+  margin-top:-13px;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:linear-gradient(90deg,#3a5a9a,var(--accent))}
+input[type=range]::-moz-range-thumb{width:34px;height:34px;border:0;border-radius:50%;background:#fff}
+.schaal{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-top:-8px;padding:0 4px}
+.stappen{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.stappen button,.octaaf button{padding:14px 0;border-radius:12px;background:var(--kaart);font-weight:600;font-size:15px;
+  box-shadow:inset 0 0 0 1px var(--rand)}
+.stappen button:active,.octaaf button:active{background:var(--rand)}
+.octaaf{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.vogelknop{align-self:center;width:150px;height:150px;border-radius:50%;background:var(--kaart);
+  box-shadow:inset 0 0 0 2px var(--rand),0 8px 30px rgba(0,0,0,.4);display:grid;place-items:center;position:relative;
+  transition:transform .15s;flex-shrink:0}
+.vogelknop:active{transform:scale(.95)}
+.vogelknop svg{width:96px;height:96px}
+.vogelknop.aan{background:radial-gradient(circle at 50% 40%,#3a2a12,var(--kaart) 70%);box-shadow:inset 0 0 0 2px var(--accent),0 0 40px rgba(255,179,71,.35)}
+.vogelknop .label{position:absolute;bottom:14px;font-size:12px;color:var(--dim);font-weight:600;letter-spacing:.5px}
+.vogelknop.aan .label{color:var(--accent)}
+.golfvorm{display:flex;background:var(--bg2);border-radius:12px;padding:4px;gap:4px}
+.golfvorm button{flex:1;padding:10px;border-radius:9px;color:var(--dim);font-weight:600;font-size:14px}
+.golfvorm button.actief{background:var(--kaart);color:var(--tekst)}
+.regel{display:flex;align-items:center;gap:12px}
+.regel label{width:72px;font-size:14px;color:var(--dim)}
+.regel input[type=range]{flex:1;height:36px}
+.regel input[type=range]::-webkit-slider-runnable-track{background:var(--rand)}
+.regel input[type=range]::-webkit-slider-thumb{width:26px;height:26px;margin-top:-9px}
+.regel input[type=range]::-moz-range-track{background:var(--rand)}
+.regel input[type=range]::-moz-range-thumb{width:26px;height:26px}
+.regel .waarde{width:52px;text-align:right;font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
+.schakel{display:flex;align-items:center;justify-content:space-between;background:var(--kaart);border-radius:12px;padding:12px 14px;
+  box-shadow:inset 0 0 0 1px var(--rand);text-align:left}
+.schakel span{font-size:14px}
+.schakel .knop{width:50px;height:30px;border-radius:15px;background:var(--rand);position:relative;transition:background .2s;flex-shrink:0}
+.schakel .knop::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s}
+.schakel.aan .knop{background:var(--accent)}
+.schakel.aan .knop::after{left:23px}
+.favs h2{font-size:14px;color:var(--dim);margin:0 0 8px;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+.favs .lijst{display:flex;flex-direction:column;gap:6px}
+.fav{display:flex;align-items:center;gap:10px;background:var(--kaart);border-radius:12px;padding:10px 12px;box-shadow:inset 0 0 0 1px var(--rand)}
+.fav .hz{font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent);min-width:80px}
+.fav .naam{flex:1;color:var(--dim);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fav .weg{width:36px;height:36px;border-radius:50%;color:var(--dim);font-size:20px}
+.bewaar{padding:14px;border-radius:12px;background:var(--accent);color:#1a1200;font-weight:700;font-size:15px}
+.leeg{color:var(--dim);font-size:14px;text-align:center;padding:8px}
+
+/* ---------- Camera ---------- */
+#camera{position:relative;background:#000;overflow:hidden}
+#camera video,#camera .achtergrond{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#camera .achtergrond{background:radial-gradient(circle at 50% 30%,#2a3f6a,#0a1220 70%);display:none}
+#camera .warmte{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 0 transparent;transition:box-shadow .2s}
+#vogel{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;display:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,.6));padding:0}
+#vogel svg{width:100%;height:100%;animation:wiebel 1.2s ease-in-out infinite}
+@keyframes wiebel{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(3deg)}}
+.pijl{position:absolute;top:50%;width:56px;height:56px;margin-top:-28px;border-radius:50%;background:rgba(15,27,45,.75);
+  display:none;place-items:center;font-size:28px;color:var(--accent);pointer-events:none}
+.pijl.links{left:12px}.pijl.rechts{right:12px}
+.pijl.boven,.pijl.onder{left:50%;margin-left:-28px;top:auto}
+.pijl.boven{top:70px}.pijl.onder{bottom:110px}
+.status{position:absolute;left:16px;right:16px;top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;pointer-events:none}
+.status .tag{background:rgba(15,27,45,.8);padding:8px 14px;border-radius:999px;font-size:14px;font-weight:600;backdrop-filter:blur(6px)}
+.status .tag.temp{min-width:90px;text-align:center}
+.onderbalk{position:absolute;left:0;right:0;bottom:0;padding:12px 16px calc(16px + env(safe-area-inset-bottom));display:flex;gap:8px;
+  background:linear-gradient(transparent,rgba(0,0,0,.7))}
+.onderbalk button{flex:1;padding:14px;border-radius:14px;background:rgba(27,45,76,.9);font-weight:600;backdrop-filter:blur(6px)}
+.onderbalk button.primair{background:var(--accent);color:#1a1200}
+.overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  background:rgba(15,27,45,.9);text-align:center;padding:24px}
+.overlay.actief{display:flex}
+.overlay h1{margin:0;font-size:34px}
+.overlay p{margin:0;color:var(--dim);max-width:320px;line-height:1.45}
+.overlay svg{width:140px;height:140px}
+.overlay .knoppen{display:flex;gap:10px;margin-top:8px;width:100%;max-width:320px}
+.overlay .knoppen button{flex:1;padding:14px;border-radius:14px;background:var(--kaart);font-weight:600;box-shadow:inset 0 0 0 1px var(--rand)}
+.overlay .knoppen button.primair{background:var(--accent);color:#1a1200;box-shadow:none}
+.melding{position:absolute;left:16px;right:16px;bottom:100px;background:rgba(255,107,107,.9);color:#fff;padding:12px 14px;border-radius:12px;
+  font-size:14px;display:none;text-align:center}
+</style>
+</head>
+<body>
+
+<nav class="tabs">
+  <button id="tabAfstemmen" class="actief">Afstemmen</button>
+  <button id="tabCamera">Vogeltje zoeken</button>
+</nav>
+
+<!-- ============ Scherm 1: afstemmen ============ -->
+<section id="afstemmen" class="scherm actief">
+  <div class="freq"><input id="hzInvoer" type="number" inputmode="numeric" min="100" max="16000" step="1"><span>Hz</span></div>
+  <div>
+    <input id="schuif" type="range" min="0" max="1000" step="1">
+    <div class="schaal"><span>100</span><span>500</span><span>1k</span><span>2k</span><span>4k</span><span>8k</span><span>16k</span></div>
+  </div>
+  <div class="stappen">
+    <button data-stap="-100">−100</button><button data-stap="-10">−10</button><button data-stap="-1">−1</button>
+    <button data-stap="1">+1</button><button data-stap="10">+10</button><button data-stap="100">+100</button>
+  </div>
+  <div class="octaaf"><button data-factor="0.5">Octaaf omlaag ÷2</button><button data-factor="2">Octaaf omhoog ×2</button></div>
+
+  <button id="vogelKnop" class="vogelknop" aria-label="Toon aan of uit">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><use href="#vogelSymbool"/></svg>
+    <span class="label">TIK = TOON</span>
+  </button>
+
+  <div class="golfvorm" id="golfvorm">
+    <button data-golf="sine" class="actief">Sinus</button>
+    <button data-golf="triangle">Driehoek</button>
+    <button data-golf="ruis">Ruis</button>
+  </div>
+  <div class="regel"><label>Volume</label><input id="volume" type="range" min="0" max="100" step="1"><span class="waarde" id="volumeWaarde"></span></div>
+  <div class="regel"><label>Balans</label><input id="balans" type="range" min="-100" max="100" step="1"><span class="waarde" id="balansWaarde"></span></div>
+  <button id="pulsSchakel" class="schakel"><span>Pulseren (toon aan/uit, 1 sec)</span><span class="knop"></span></button>
+
+  <div class="favs">
+    <h2>Bewaard</h2>
+    <div class="lijst" id="favLijst"></div>
+  </div>
+  <button id="bewaar" class="bewaar">Bewaar deze frequentie</button>
+</section>
+
+<!-- ============ Scherm 2: camera ============ -->
+<section id="camera" class="scherm">
+  <video id="video" playsinline muted autoplay></video>
+  <div class="achtergrond" id="achtergrond"></div>
+  <div class="warmte" id="warmte"></div>
+  <div class="pijl links" id="pijlLinks">◀</div>
+  <div class="pijl rechts" id="pijlRechts">▶</div>
+  <div class="pijl boven" id="pijlBoven">▲</div>
+  <div class="pijl onder" id="pijlOnder">▼</div>
+  <button id="vogel" aria-label="Vogeltje"><svg viewBox="0 0 100 100"><use href="#vogelSymbool"/></svg></button>
+  <div class="status"><span class="tag" id="camHz"></span><span class="tag temp" id="temperatuur">…</span></div>
+  <div class="melding" id="melding"></div>
+  <div class="onderbalk">
+    <button id="camStop">Stop</button>
+    <button id="camOpnieuw" class="primair">Verstop opnieuw</button>
+  </div>
+  <div class="overlay" id="startOverlay">
+    <svg viewBox="0 0 100 100"><use href="#vogelSymbool"/></svg>
+    <h1>Vogeltje zoeken</h1>
+    <p>Het vogeltje verstopt zich ergens om je heen en fluit jouw piep. Draai met je telefoon: het geluid draait mee en wordt warmer als je in de goede richting kijkt. Zie je het vogeltje? Tik erop en het wordt stil.</p>
+    <div class="knoppen"><button id="camStart" class="primair">Start met camera</button></div>
+  </div>
+  <div class="overlay" id="gevondenOverlay">
+    <svg viewBox="0 0 100 100"><use href="#vogelSymbool"/></svg>
+    <h1>Gevonden!</h1>
+    <p id="gevondenTekst"></p>
+    <div class="knoppen"><button id="nogEens" class="primair">Nog een keer</button><button id="klaar">Klaar</button></div>
+  </div>
+</section>
+
+<!-- Vogel-symbool, één keer gedefinieerd -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="vogelSymbool" viewBox="0 0 100 100">
+    <ellipse cx="46" cy="58" rx="28" ry="20" fill="#ffb347"/>
+    <path d="M18 58 L4 70 L10 56 L2 46 Z" fill="#ff8a3d"/>
+    <path d="M40 50 Q58 40 74 54 Q58 60 40 62 Z" fill="#ff8a3d"/>
+    <circle cx="68" cy="40" r="14" fill="#ffc46b"/>
+    <path d="M80 40 L94 44 L80 48 Z" fill="#3a2a12"/>
+    <circle cx="71" cy="37" r="2.6" fill="#1a1200"/>
+    <path d="M38 76 L34 88 M48 76 L48 88 M52 76 L58 88" stroke="#3a2a12" stroke-width="3" stroke-linecap="round" fill="none"/>
+  </symbol>
+</svg>
+
+<script>
+/* ======================= Instellingen en opslag ======================= */
+const MIN_HZ = 100, MAX_HZ = 16000;
+const OPSLAG = 'piep-v1';
+const standaard = { hz: 8000, vol: 25, bal: 0, golf: 'sine', puls: false, favs: [] };
+let st = Object.assign({}, standaard, laad());
+
+function laad(){ try { return JSON.parse(localStorage.getItem(OPSLAG)) || {}; } catch(e){ return {}; } }
+function bewaarSt(){ try { localStorage.setItem(OPSLAG, JSON.stringify(st)); } catch(e){} }
+
+const $ = s => document.querySelector(s);
+const klem = (v, a, b) => Math.min(b, Math.max(a, v));
+const hzNaarSchuif = hz => Math.round(1000 * Math.log(hz / MIN_HZ) / Math.log(MAX_HZ / MIN_HZ));
+const schuifNaarHz = v => Math.round(MIN_HZ * Math.pow(MAX_HZ / MIN_HZ, v / 1000));
+
+/* ======================= Audio ======================= */
+let ctx, master, bron, bronGain, filter, stereo, panner3d, ruisBuffer, pulsTimer;
+let toonAan = false;
+
+function zorgCtx(){
+  if (!ctx){
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain();
+    master.connect(ctx.destination);
+  }
+  if (ctx.state === 'suspended') ctx.resume();
+  master.gain.value = volumeCurve(st.vol);
+}
+function volumeCurve(v){ return Math.pow(v / 100, 2) * 0.8; }
+
+function maakRuis(){
+  if (ruisBuffer) return ruisBuffer;
+  const n = ctx.sampleRate * 2, b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  return ruisBuffer = b;
+}
+
+/* modus: 'stereo' (afstemscherm) of '3d' (camera) */
+function startToon(modus){
+  stopToon();
+  zorgCtx();
+  bronGain = ctx.createGain();
+  bronGain.gain.value = 0;
+  if (st.golf === 'ruis'){
+    bron = ctx.createBufferSource();
+    bron.buffer = maakRuis(); bron.loop = true;
+    filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass'; filter.frequency.value = st.hz; filter.Q.value = 25;
+    bron.connect(filter).connect(bronGain);
+  } else {
+    bron = ctx.createOscillator();
+    bron.type = st.golf; bron.frequency.value = st.hz;
+    bron.connect(bronGain);
+  }
+  if (modus === '3d'){
+    panner3d = ctx.createPanner();
+    panner3d.panningModel = 'HRTF';
+    panner3d.distanceModel = 'linear';
+    panner3d.refDistance = 1; panner3d.maxDistance = 10; panner3d.rolloffFactor = 0;
+    zetPositie(0, 0, -1);
+    bronGain.connect(panner3d).connect(master);
+  } else if (ctx.createStereoPanner){
+    stereo = ctx.createStereoPanner();
+    stereo.pan.value = st.bal / 100;
+    bronGain.connect(stereo).connect(master);
+  } else {
+    bronGain.connect(master);
+  }
+  bron.start();
+  bronGain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.04);
+  toonAan = true;
+  if (modus !== '3d' && st.puls) startPuls();
+}
+function stopToon(){
+  stopPuls();
+  if (bron){
+    try {
+      const g = bronGain, b = bron;
+      g.gain.cancelScheduledValues(ctx.currentTime);
+      g.gain.setValueAtTime(g.gain.value, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.04);
+      b.stop(ctx.currentTime + 0.06);
+    } catch(e){}
+  }
+  bron = bronGain = filter = stereo = panner3d = null;
+  toonAan = false;
+}
+function zetHz(){
+  if (!bron) return;
+  const t = ctx.currentTime;
+  if (filter) filter.frequency.setTargetAtTime(st.hz, t, 0.01);
+  else bron.frequency.setTargetAtTime(st.hz, t, 0.01);
+}
+function zetPositie(x, y, z){
+  if (!panner3d) return;
+  if (panner3d.positionX){
+    const t = ctx.currentTime;
+    panner3d.positionX.setTargetAtTime(x, t, 0.05);
+    panner3d.positionY.setTargetAtTime(y, t, 0.05);
+    panner3d.positionZ.setTargetAtTime(z, t, 0.05);
+  } else panner3d.setPosition(x, y, z);
+}
+function startPuls(){
+  stopPuls();
+  let aan = true;
+  pulsTimer = setInterval(() => {
+    if (!bronGain) return;
+    aan = !aan;
+    bronGain.gain.cancelScheduledValues(ctx.currentTime);
+    bronGain.gain.setTargetAtTime(aan ? 1 : 0, ctx.currentTime, 0.02);
+  }, 1000);
+}
+function stopPuls(){ if (pulsTimer){ clearInterval(pulsTimer); pulsTimer = null; } }
+
+/* ======================= Afstemscherm ======================= */
+const hzInvoer = $('#hzInvoer'), schuif = $('#schuif'), vogelKnop = $('#vogelKnop');
+const volume = $('#volume'), balans = $('#balans');
+
+function toonHz(){
+  hzInvoer.value = st.hz;
+  schuif.value = hzNaarSchuif(st.hz);
+  $('#camHz').textContent = st.hz + ' Hz';
+}
+function kiesHz(hz){
+  st.hz = klem(Math.round(hz), MIN_HZ, MAX_HZ);
+  toonHz(); zetHz(); bewaarSt();
+}
+schuif.addEventListener('input', () => kiesHz(schuifNaarHz(+schuif.value)));
+hzInvoer.addEventListener('change', () => kiesHz(+hzInvoer.value || st.hz));
+hzInvoer.addEventListener('focus', () => hzInvoer.select());
+document.querySelectorAll('.stappen button').forEach(b => b.addEventListener('click', () => kiesHz(st.hz + +b.dataset.stap)));
+document.querySelectorAll('.octaaf button').forEach(b => b.addEventListener('click', () => kiesHz(st.hz * +b.dataset.factor)));
+
+function toonVogelKnop(){
+  vogelKnop.classList.toggle('aan', toonAan);
+  vogelKnop.querySelector('.label').textContent = toonAan ? 'TIK = STIL' : 'TIK = TOON';
+}
+vogelKnop.addEventListener('click', () => {
+  if (toonAan) stopToon(); else startToon('stereo');
+  toonVogelKnop();
+});
+
+document.querySelectorAll('#golfvorm button').forEach(b => b.addEventListener('click', () => {
+  st.golf = b.dataset.golf;
+  document.querySelectorAll('#golfvorm button').forEach(x => x.classList.toggle('actief', x === b));
+  bewaarSt();
+  if (toonAan) startToon('stereo');
+}));
+
+function toonRegels(){
+  volume.value = st.vol; $('#volumeWaarde').textContent = st.vol + '%';
+  balans.value = st.bal; $('#balansWaarde').textContent = st.bal === 0 ? 'midden' : (st.bal < 0 ? 'L ' + (-st.bal) : 'R ' + st.bal);
+  $('#pulsSchakel').classList.toggle('aan', st.puls);
+}
+volume.addEventListener('input', () => { st.vol = +volume.value; toonRegels(); if (master) master.gain.setTargetAtTime(volumeCurve(st.vol), ctx.currentTime, 0.02); bewaarSt(); });
+balans.addEventListener('input', () => { st.bal = +balans.value; toonRegels(); if (stereo) stereo.pan.setTargetAtTime(st.bal / 100, ctx.currentTime, 0.02); bewaarSt(); });
+$('#pulsSchakel').addEventListener('click', () => {
+  st.puls = !st.puls; toonRegels(); bewaarSt();
+  if (toonAan){ if (st.puls) startPuls(); else { stopPuls(); bronGain.gain.setTargetAtTime(1, ctx.currentTime, 0.02); } }
+});
+
+/* Bewaarde frequenties */
+function toonFavs(){
+  const lijst = $('#favLijst'); lijst.innerHTML = '';
+  if (!st.favs.length){ lijst.innerHTML = '<div class="leeg">Nog niets bewaard.</div>'; return; }
+  st.favs.forEach((f, i) => {
+    const rij = document.createElement('div'); rij.className = 'fav';
+    rij.innerHTML = `<span class="hz">${f.hz} Hz</span><span class="naam">${esc(f.naam)}</span><button class="weg" aria-label="Verwijder">×</button>`;
+    rij.addEventListener('click', e => { if (e.target.classList.contains('weg')) return; kiesHz(f.hz); });
+    rij.querySelector('.weg').addEventListener('click', () => { st.favs.splice(i, 1); bewaarSt(); toonFavs(); });
+    lijst.appendChild(rij);
+  });
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+$('#bewaar').addEventListener('click', () => {
+  const d = new Date();
+  const std = d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  const naam = prompt('Naam voor ' + st.hz + ' Hz:', std);
+  if (naam === null) return;
+  st.favs.unshift({ hz: st.hz, naam: naam || std });
+  bewaarSt(); toonFavs();
+});
+
+/* ======================= Tabs ======================= */
+const tabAfstemmen = $('#tabAfstemmen'), tabCamera = $('#tabCamera');
+function kiesScherm(naam){
+  const cam = naam === 'camera';
+  $('#afstemmen').classList.toggle('actief', !cam);
+  $('#camera').classList.toggle('actief', cam);
+  tabAfstemmen.classList.toggle('actief', !cam);
+  tabCamera.classList.toggle('actief', cam);
+  if (cam){
+    stopToon(); toonVogelKnop();
+    $('#startOverlay').classList.add('actief'); $('#gevondenOverlay').classList.remove('actief');
+  } else stopCamera();
+}
+tabAfstemmen.addEventListener('click', () => kiesScherm('afstemmen'));
+tabCamera.addEventListener('click', () => kiesScherm('camera'));
+
+/* ======================= Camera-modus ======================= */
+const video = $('#video'), vogel = $('#vogel'), warmte = $('#warmte'), temperatuur = $('#temperatuur'), melding = $('#melding');
+const pijlen = { links: $('#pijlLinks'), rechts: $('#pijlRechts'), boven: $('#pijlBoven'), onder: $('#pijlOnder') };
+const H_FOV = 55, V_FOV = 72;          // geschat beeldveld van de camera (graden), staand
+let stream = null, camActief = false, animatie = null;
+let kijkKoers = 0, kijkHelling = 0;     // waar de camera heen kijkt (graden)
+let vogelKoers = 0, vogelHelling = 0;   // waar het vogeltje zit
+let sensorOk = false, oriEvent = null, gevonden = false, startTijd = 0;
+let sleep = null;                       // noodoplossing zonder sensor: slepen draait je rond
+
+const rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI;
+const wrap = d => ((d + 540) % 360) - 180;
+
+/* Koers/helling uit alpha, beta, gamma: richting van de achtercamera (-z van het toestel) in de wereld. */
+function verwerkOri(e){
+  if (e.alpha == null || e.beta == null || e.gamma == null) return;
+  const a = rad(e.alpha), b = rad(e.beta), g = rad(e.gamma);
+  const ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b), cg = Math.cos(g), sg = Math.sin(g);
+  const x = -ca * sg - sa * sb * cg;   // oost
+  const y = -sa * sg + ca * sb * cg;   // noord
+  const z = -cb * cg;                  // omhoog
+  kijkKoers = (deg(Math.atan2(x, y)) + 360) % 360;
+  kijkHelling = deg(Math.asin(klem(z, -1, 1)));
+  sensorOk = true;
+}
+
+function toonMelding(t, ms = 4000){
+  melding.textContent = t; melding.style.display = 'block';
+  clearTimeout(toonMelding.t); toonMelding.t = setTimeout(() => melding.style.display = 'none', ms);
+}
+
+async function startCamera(){
+  $('#startOverlay').classList.remove('actief');
+  $('#gevondenOverlay').classList.remove('actief');
+  zorgCtx();
+  // iOS vraagt expliciet toestemming voor de bewegingssensor, en alleen na een tik
+  if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function'){
+    try { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') toonMelding('Geen toegang tot de bewegingssensor.'); } catch(e){}
+  }
+  oriEvent = ('ondeviceorientationabsolute' in window) ? 'deviceorientationabsolute' : 'deviceorientation';
+  window.addEventListener(oriEvent, verwerkOri, true);
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    video.srcObject = stream; await video.play();
+    $('#achtergrond').style.display = 'none';
+  } catch(e){
+    $('#achtergrond').style.display = 'block';
+    toonMelding('Geen camera beschikbaar, het spel werkt wel.');
+  }
+  camActief = true;
+  // zonder sensor na 1,5 s: slepen om te draaien
+  setTimeout(() => { if (camActief && !sensorOk) zetSleep(); }, 1500);
+  nieuweRonde();
+  animatie = requestAnimationFrame(tik);
+}
+function zetSleep(){
+  if (sleep) return;
+  toonMelding('Geen bewegingssensor gevonden. Sleep over het scherm om rond te kijken.', 6000);
+  let vorige = null;
+  sleep = {
+    down: e => { vorige = { x: e.clientX, y: e.clientY }; },
+    move: e => { if (!vorige) return; kijkKoers = (kijkKoers - (e.clientX - vorige.x) * 0.25 + 360) % 360; kijkHelling = klem(kijkHelling + (e.clientY - vorige.y) * 0.25, -60, 60); vorige = { x: e.clientX, y: e.clientY }; },
+    up: () => { vorige = null; }
+  };
+  const c = $('#camera');
+  c.addEventListener('pointerdown', sleep.down); c.addEventListener('pointermove', sleep.move);
+  c.addEventListener('pointerup', sleep.up); c.addEventListener('pointercancel', sleep.up);
+}
+function stopCamera(){
+  camActief = false; gevonden = false;
+  if (animatie) cancelAnimationFrame(animatie); animatie = null;
+  if (oriEvent) window.removeEventListener(oriEvent, verwerkOri, true);
+  if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; video.srcObject = null; }
+  stopToon();
+  vogel.style.display = 'none'; Object.values(pijlen).forEach(p => p.style.display = 'none');
+  warmte.style.boxShadow = 'none';
+}
+function nieuweRonde(){
+  gevonden = false;
+  // vogeltje tussen 50° en 310° weg van waar je nu kijkt, dus nooit recht voor je
+  vogelKoers = (kijkKoers + 50 + Math.random() * 260) % 360;
+  vogelHelling = klem(kijkHelling, -20, 20) + (Math.random() * 30 - 10);
+  startTijd = performance.now();
+  $('#gevondenOverlay').classList.remove('actief');
+  startToon('3d');
+}
+
+function tik(){
+  if (!camActief) return;
+  animatie = requestAnimationFrame(tik);
+  if (gevonden) return;
+  const dK = wrap(vogelKoers - kijkKoers);        // + = rechts
+  const dH = vogelHelling - kijkHelling;          // + = boven
+  // positie voor de 3D-panner: luisteraar kijkt naar -z
+  const ph = rad(dH), pk = rad(dK);
+  zetPositie(Math.sin(pk) * Math.cos(ph), Math.sin(ph), -Math.cos(pk) * Math.cos(ph));
+  // warmte: hoek tussen kijkrichting en vogeltje
+  const hoek = deg(Math.acos(klem(Math.cos(pk) * Math.cos(ph), -1, 1)));
+  const w = klem(1 - hoek / 180, 0, 1);
+  if (bronGain) bronGain.gain.setTargetAtTime(0.12 + 0.88 * Math.pow(w, 3), ctx.currentTime, 0.1);
+  const kleur = hoek < 15 ? '255,138,61' : hoek < 40 ? '255,179,71' : hoek < 90 ? '140,160,200' : '90,169,255';
+  warmte.style.boxShadow = `inset 0 0 ${Math.round(20 + 120 * w)}px rgba(${kleur},${(0.25 + 0.6 * w).toFixed(2)})`;
+  temperatuur.textContent = hoek < 12 ? '🔥 Heet' : hoek < 30 ? 'Warm' : hoek < 70 ? 'Lauw' : hoek < 120 ? 'Koud' : '🧊 IJskoud';
+  // projectie op het scherm
+  const r = $('#camera').getBoundingClientRect();
+  const inBeeld = Math.abs(dK) < 80 && Math.abs(dH) < 80;
+  const x = r.width / 2 + Math.tan(pk) / Math.tan(rad(H_FOV / 2)) * r.width / 2;
+  const y = r.height / 2 - Math.tan(ph) / Math.tan(rad(V_FOV / 2)) * r.height / 2;
+  const marge = 50;
+  const zichtbaar = inBeeld && x > marge && x < r.width - marge && y > marge + 50 && y < r.height - 110;
+  vogel.style.display = zichtbaar ? 'block' : 'none';
+  if (zichtbaar){ vogel.style.left = x + 'px'; vogel.style.top = y + 'px'; }
+  pijlen.links.style.display = !zichtbaar && dK < -10 ? 'grid' : 'none';
+  pijlen.rechts.style.display = !zichtbaar && dK > 10 ? 'grid' : 'none';
+  pijlen.boven.style.display = !zichtbaar && Math.abs(dK) <= 45 && dH > 10 ? 'grid' : 'none';
+  pijlen.onder.style.display = !zichtbaar && Math.abs(dK) <= 45 && dH < -10 ? 'grid' : 'none';
+}
+
+vogel.addEventListener('click', () => {
+  if (gevonden) return;
+  gevonden = true;
+  stopToon();
+  vogel.style.display = 'none'; Object.values(pijlen).forEach(p => p.style.display = 'none');
+  warmte.style.boxShadow = 'none'; temperatuur.textContent = '✓';
+  const sec = Math.round((performance.now() - startTijd) / 1000);
+  $('#gevondenTekst').textContent = `Het vogeltje is stil. Gevonden in ${sec} seconde${sec === 1 ? '' : 'n'} bij ${st.hz} Hz.`;
+  $('#gevondenOverlay').classList.add('actief');
+  if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+});
+$('#camStart').addEventListener('click', startCamera);
+$('#nogEens').addEventListener('click', nieuweRonde);
+$('#camOpnieuw').addEventListener('click', () => { if (camActief) nieuweRonde(); });
+$('#klaar').addEventListener('click', () => kiesScherm('afstemmen'));
+$('#camStop').addEventListener('click', () => kiesScherm('afstemmen'));
+
+/* Toon uit als de app naar de achtergrond gaat */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden){
+    if (camActief) kiesScherm('afstemmen');
+    else if (toonAan){ stopToon(); toonVogelKnop(); }
+  }
+});
+
+/* ======================= Start ======================= */
+toonHz(); toonRegels(); toonFavs();
+document.querySelectorAll('#golfvorm button').forEach(x => x.classList.toggle('actief', x.dataset.golf === st.golf));
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
