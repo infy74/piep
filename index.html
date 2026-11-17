@@ -114,6 +114,22 @@ input[type=range]::-moz-range-thumb{width:34px;height:34px;border:0;border-radiu
 .overlay .knoppen{display:flex;gap:10px;margin-top:8px;width:100%;max-width:320px}
 .overlay .knoppen button{flex:1;padding:14px;border-radius:14px;background:var(--kaart);font-weight:600;box-shadow:inset 0 0 0 1px var(--rand)}
 .overlay .knoppen button.primair{background:var(--accent);color:#1a1200;box-shadow:none}
+.status .tag.teller{color:var(--accent)}
+.flits{position:absolute;left:0;right:0;top:40%;text-align:center;font-size:40px;font-weight:800;color:var(--accent);
+  text-shadow:0 2px 12px rgba(0,0,0,.7);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;transform:scale(.8)}
+.flits.aan{opacity:1;transform:scale(1)}
+
+/* ---------- Dagboek ---------- */
+#dagboek{padding:12px 16px calc(16px + env(safe-area-inset-bottom));overflow-y:auto;gap:10px}
+.totaal{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.totaal div{background:var(--kaart);border-radius:12px;padding:12px 8px;text-align:center;box-shadow:inset 0 0 0 1px var(--rand)}
+.totaal b{display:block;font-size:26px;color:var(--accent);font-variant-numeric:tabular-nums}
+.totaal span{font-size:12px;color:var(--dim)}
+#dagboek .lijst{display:flex;flex-direction:column;gap:6px}
+.potje{display:flex;align-items:center;gap:10px;background:var(--kaart);border-radius:12px;padding:10px 12px;box-shadow:inset 0 0 0 1px var(--rand)}
+.potje .aantal{font-weight:700;font-size:20px;color:var(--accent);min-width:56px;font-variant-numeric:tabular-nums}
+.potje .info{flex:1;font-size:13px;color:var(--dim);line-height:1.4}
+.potje .info b{color:var(--tekst);font-weight:600;display:block;font-size:14px}
 .diagnose{position:absolute;left:12px;right:12px;bottom:86px;font-size:11px;color:rgba(238,243,251,.8);text-align:center;
   text-shadow:0 1px 3px #000;pointer-events:none;font-variant-numeric:tabular-nums}
 .melding{position:absolute;left:16px;right:16px;bottom:100px;background:rgba(255,107,107,.9);color:#fff;padding:12px 14px;border-radius:12px;
@@ -125,6 +141,7 @@ input[type=range]::-moz-range-thumb{width:34px;height:34px;border:0;border-radiu
 <nav class="tabs">
   <button id="tabAfstemmen" class="actief">Afstemmen</button>
   <button id="tabCamera">Vogeltje zoeken</button>
+  <button id="tabDagboek">Dagboek</button>
 </nav>
 
 <!-- ============ Scherm 1: afstemmen ============ -->
@@ -171,25 +188,32 @@ input[type=range]::-moz-range-thumb{width:34px;height:34px;border:0;border-radiu
   <div class="pijl boven" id="pijlBoven">▲</div>
   <div class="pijl onder" id="pijlOnder">▼</div>
   <button id="vogel" aria-label="Vogeltje"><svg viewBox="0 0 100 100"><use href="#vogelSymbool"/></svg></button>
-  <div class="status"><span class="tag" id="camHz"></span><span class="tag temp" id="temperatuur">…</span></div>
+  <div class="status"><span class="tag" id="camHz"></span><span class="tag teller" id="teller">🐦 0</span><span class="tag temp" id="temperatuur">…</span></div>
+  <div class="flits" id="flits"></div>
   <div class="melding" id="melding"></div>
   <div class="diagnose" id="diagnose"></div>
   <div class="onderbalk">
-    <button id="camStop">Stop</button>
-    <button id="camOpnieuw" class="primair">Verstop opnieuw</button>
+    <button id="camOpnieuw">Verstop opnieuw</button>
+    <button id="camStop" class="primair">Stop en bewaar</button>
   </div>
   <div class="overlay" id="startOverlay">
     <svg viewBox="0 0 100 100"><use href="#vogelSymbool"/></svg>
     <h1>Vogeltje zoeken</h1>
-    <p>Het vogeltje zit eerst even recht voor je en vliegt dan weg: links of rechts, hooguit een kwartslag draaien. Draai met je telefoon: het geluid draait mee en piept harder en sneller als je dichterbij komt. Zie je het vogeltje? Tik erop en het wordt stil. Oortjes aanbevolen.</p>
+    <p>Het vogeltje begint klein en zacht in de verte, links of rechts van je, en komt langzaam naar voren: steeds groter en harder. Draai met je telefoon, het geluid draait mee. Zie je het vogeltje? Tik erop, het wordt stil en de volgende komt. Oortjes aanbevolen.</p>
     <div class="knoppen"><button id="camStart" class="primair">Start met camera</button></div>
   </div>
   <div class="overlay" id="gevondenOverlay">
     <svg viewBox="0 0 100 100"><use href="#vogelSymbool"/></svg>
-    <h1>Gevonden!</h1>
+    <h1>Klaar!</h1>
     <p id="gevondenTekst"></p>
-    <div class="knoppen"><button id="nogEens" class="primair">Nog een keer</button><button id="klaar">Klaar</button></div>
+    <div class="knoppen"><button id="nogEens" class="primair">Nog een potje</button><button id="klaar">Dagboek</button></div>
   </div>
+</section>
+
+<!-- ============ Scherm 3: dagboek ============ -->
+<section id="dagboek" class="scherm">
+  <div class="totaal" id="totaal"></div>
+  <div class="lijst" id="dagboekLijst"></div>
 </section>
 
 <!-- Vogel-symbool, één keer gedefinieerd -->
@@ -209,7 +233,7 @@ input[type=range]::-moz-range-thumb{width:34px;height:34px;border:0;border-radiu
 /* ======================= Instellingen en opslag ======================= */
 const MIN_HZ = 100, MAX_HZ = 16000;
 const OPSLAG = 'piep-v1';
-const standaard = { hz: 8000, vol: 25, bal: 0, golf: 'sine', puls: false, favs: [] };
+const standaard = { hz: 8000, vol: 25, bal: 0, golf: 'sine', puls: false, favs: [], dagboek: [] };
 let st = Object.assign({}, standaard, laad());
 
 function laad(){ try { return JSON.parse(localStorage.getItem(OPSLAG)) || {}; } catch(e){ return {}; } }
@@ -261,7 +285,7 @@ function startToon(modus){
   }
   if (modus === '3d'){
     panner3d = ctx.createPanner();
-    panner3d.panningModel = 'HRTF';
+    panner3d.panningModel = 'equalpower';   // schoner dan HRTF bij een hoge zuivere toon
     panner3d.distanceModel = 'linear';
     panner3d.refDistance = 1; panner3d.maxDistance = 10; panner3d.rolloffFactor = 0;
     zetPositie(0, 0, -1);
@@ -302,9 +326,9 @@ function zetPositie(x, y, z){
   if (!panner3d) return;
   if (panner3d.positionX){
     const t = ctx.currentTime;
-    panner3d.positionX.setTargetAtTime(x, t, 0.05);
-    panner3d.positionY.setTargetAtTime(y, t, 0.05);
-    panner3d.positionZ.setTargetAtTime(z, t, 0.05);
+    panner3d.positionX.setTargetAtTime(x, t, 0.12);
+    panner3d.positionY.setTargetAtTime(y, t, 0.12);
+    panner3d.positionZ.setTargetAtTime(z, t, 0.12);
   } else panner3d.setPosition(x, y, z);
 }
 function startPuls(){
@@ -389,20 +413,39 @@ $('#bewaar').addEventListener('click', () => {
 });
 
 /* ======================= Tabs ======================= */
-const tabAfstemmen = $('#tabAfstemmen'), tabCamera = $('#tabCamera');
+const tabs = { afstemmen: $('#tabAfstemmen'), camera: $('#tabCamera'), dagboek: $('#tabDagboek') };
 function kiesScherm(naam){
-  const cam = naam === 'camera';
-  $('#afstemmen').classList.toggle('actief', !cam);
-  $('#camera').classList.toggle('actief', cam);
-  tabAfstemmen.classList.toggle('actief', !cam);
-  tabCamera.classList.toggle('actief', cam);
-  if (cam){
+  for (const k in tabs){
+    $('#' + k).classList.toggle('actief', k === naam);
+    tabs[k].classList.toggle('actief', k === naam);
+  }
+  if (naam === 'camera'){
     stopToon(); toonVogelKnop();
     $('#startOverlay').classList.add('actief'); $('#gevondenOverlay').classList.remove('actief');
-  } else stopCamera();
+  } else {
+    if (camActief) eindigPotje(false);
+    stopCamera();
+    if (naam === 'dagboek') toonDagboek();
+  }
 }
-tabAfstemmen.addEventListener('click', () => kiesScherm('afstemmen'));
-tabCamera.addEventListener('click', () => kiesScherm('camera'));
+for (const k in tabs) tabs[k].addEventListener('click', () => kiesScherm(k));
+
+/* ======================= Dagboek ======================= */
+function duurTekst(sec){ const m = Math.floor(sec / 60), s = sec % 60; return m ? `${m} min ${s} s` : `${s} s`; }
+function toonDagboek(){
+  const lijst = $('#dagboekLijst'), d = st.dagboek;
+  const totaalVogels = d.reduce((a, p) => a + p.aantal, 0), totaalSec = d.reduce((a, p) => a + p.duur, 0);
+  $('#totaal').innerHTML = `<div><b>${totaalVogels}</b><span>vogeltjes</span></div><div><b>${d.length}</b><span>potjes</span></div><div><b>${Math.round(totaalSec / 60)}</b><span>minuten</span></div>`;
+  lijst.innerHTML = '';
+  if (!d.length){ lijst.innerHTML = '<div class="leeg">Nog geen potjes gespeeld.</div>'; return; }
+  d.forEach((p, i) => {
+    const dt = new Date(p.datum);
+    const rij = document.createElement('div'); rij.className = 'potje';
+    rij.innerHTML = `<span class="aantal">🐦 ${p.aantal}</span><span class="info"><b>${dt.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })} ${dt.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</b>${duurTekst(p.duur)} · ${p.hz} Hz</span><button class="weg" aria-label="Verwijder">×</button>`;
+    rij.querySelector('.weg').addEventListener('click', () => { st.dagboek.splice(i, 1); bewaarSt(); toonDagboek(); });
+    lijst.appendChild(rij);
+  });
+}
 
 /* ======================= Camera-modus ======================= */
 const video = $('#video'), vogel = $('#vogel'), warmte = $('#warmte'), temperatuur = $('#temperatuur'), melding = $('#melding'), diagnose = $('#diagnose');
@@ -412,6 +455,7 @@ let stream = null, camActief = false, animatie = null;
 let kijkKoers = 0, kijkHelling = 0;     // waar de camera heen kijkt (graden)
 let vogelKoers = 0, vogelHelling = 0;   // waar het vogeltje zit
 let sensorOk = false, sensorSoort = 'geen', gevonden = false, startTijd = 0;
+let aantalGevonden = 0, potjeStart = 0;   // teller en begintijd van het lopende potje
 let sleep = null;                       // noodoplossing zonder sensor: slepen draait je rond
 
 const rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI;
@@ -461,6 +505,7 @@ async function startCamera(){
     toonMelding('Geen camera beschikbaar, het spel werkt wel.');
   }
   camActief = true;
+  aantalGevonden = 0; potjeStart = performance.now(); toonTeller();
   leesSensorRechten();
   // geen sensorgegevens na 1,5 s: probeer de nieuwere sensor-API (Chrome/Android); daarna slepen om te draaien
   setTimeout(async () => {
@@ -531,28 +576,18 @@ function stopCamera(){
 let intro = false, introTimer = null, vogelSchaal = 1, startSchaal = 1;   // schaal 1 = dichtbij, 0.35 = ver weg
 const NADER_MS = 25000;   // tijd waarin het vogeltje van de verte naar dichtbij komt
 function nieuweRonde(){
-  gevonden = false;
+  gevonden = false; intro = false;
   $('#gevondenOverlay').classList.remove('actief');
-  // eerst zit het vogeltje 3 tellen recht voor je in beeld, daarna vliegt hij weg
-  intro = true;
-  vogelSchaal = 1;
-  vogelKoers = kijkKoers; vogelHelling = kijkHelling;
-  temperatuur.textContent = 'Kijk, daar!';
+  // verstopplek hooguit een halve draai van je af: 30° tot 90° links of rechts van waar je nu kijkt
+  const kant = Math.random() < 0.5 ? -1 : 1;
+  vogelKoers = (kijkKoers + kant * (30 + Math.random() * 60) + 360) % 360;
+  // en ongeveer op ooghoogte, iets omhoog of omlaag
+  vogelHelling = klem(kijkHelling + (Math.random() * 20 - 8), -25, 30);
+  // begint altijd klein en zacht in de verte en komt daarna langzaam naar voren, steeds harder
+  startSchaal = 0.3;
+  vogelSchaal = startSchaal;
+  startTijd = performance.now();
   startToon('3d');
-  clearTimeout(introTimer);
-  introTimer = setTimeout(() => {
-    if (!camActief) return;
-    intro = false;
-    // verstopplek hooguit een halve draai van je af: 30° tot 90° links of rechts van waar je nu kijkt
-    const kant = Math.random() < 0.5 ? -1 : 1;
-    vogelKoers = (kijkKoers + kant * (30 + Math.random() * 60) + 360) % 360;
-    // en ongeveer op ooghoogte, iets omhoog of omlaag
-    vogelHelling = klem(kijkHelling + (Math.random() * 20 - 8), -25, 30);
-    // begint in de verte (klein en zacht) en komt daarna langzaam naar voren
-    startSchaal = 0.35 + Math.random() * 0.3;
-    vogelSchaal = startSchaal;
-    startTijd = performance.now();
-  }, 3000);
 }
 
 function tik(){
@@ -568,16 +603,10 @@ function tik(){
   zetPositie(Math.sin(pk) * Math.cos(ph), Math.sin(ph), -Math.cos(pk) * Math.cos(ph));
   // warmte: hoek tussen kijkrichting en vogeltje
   const hoek = deg(Math.acos(klem(Math.cos(pk) * Math.cos(ph), -1, 1)));
-  // dichterbij = harder én sneller piepen; recht ervoor (< 10°) klinkt de toon ononderbroken
+  // ononderbroken toon; richting (w) én afstand (vogelSchaal) bepalen vloeiend de sterkte
   const w = klem(1 - hoek / 90, 0, 1);
-  // richting (w) én afstand (vogelSchaal) bepalen de sterkte: ver weg is duidelijk zachter
-  const sterkte = (0.06 + 0.94 * w * w) * (0.25 + 0.75 * vogelSchaal * vogelSchaal);
-  let aan = true;
-  if (hoek >= 10){
-    const periode = 180 + (1 - w) * 1100;                  // ms per piep: 180 ms dichtbij, 1,3 s ver weg
-    aan = (performance.now() % periode) < periode * 0.5;
-  }
-  if (bronGain) bronGain.gain.setTargetAtTime(aan ? sterkte : 0, ctx.currentTime, 0.02);
+  const sterkte = (0.15 + 0.85 * w * w) * (0.08 + 0.92 * vogelSchaal * vogelSchaal);
+  if (bronGain) bronGain.gain.setTargetAtTime(sterkte, ctx.currentTime, 0.15);
   const kleur = hoek < 15 ? '255,138,61' : hoek < 40 ? '255,179,71' : hoek < 90 ? '140,160,200' : '90,169,255';
   warmte.style.boxShadow = `inset 0 0 ${Math.round(20 + 120 * w)}px rgba(${kleur},${(0.25 + 0.6 * w).toFixed(2)})`;
   if (!intro) temperatuur.textContent = hoek < 12 ? '🔥 Heet' : hoek < 30 ? 'Warm' : hoek < 70 ? 'Lauw' : hoek < 120 ? 'Koud' : '🧊 IJskoud';
@@ -597,22 +626,47 @@ function tik(){
   pijlen.onder.style.display = !zichtbaar && Math.abs(dK) <= 45 && dH < -10 ? 'grid' : 'none';
 }
 
+function toonTeller(){ $('#teller').textContent = '🐦 ' + aantalGevonden; }
+let flitsTimer = null;
+function flits(tekst){
+  const f = $('#flits'); f.textContent = tekst; f.classList.add('aan');
+  clearTimeout(flitsTimer); flitsTimer = setTimeout(() => f.classList.remove('aan'), 900);
+}
+
+/* Vogeltje gevonden: toon stil, teller omhoog, en meteen door met de volgende */
 vogel.addEventListener('click', () => {
   if (gevonden || intro) return;
   gevonden = true;
   stopToon();
+  aantalGevonden++; toonTeller();
   vogel.style.display = 'none'; Object.values(pijlen).forEach(p => p.style.display = 'none');
   warmte.style.boxShadow = 'none'; temperatuur.textContent = '✓';
-  const sec = Math.round((performance.now() - startTijd) / 1000);
-  $('#gevondenTekst').textContent = `Het vogeltje is stil. Gevonden in ${sec} seconde${sec === 1 ? '' : 'n'} bij ${st.hz} Hz.`;
-  $('#gevondenOverlay').classList.add('actief');
+  flits('Gevonden! ' + aantalGevonden);
   if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+  setTimeout(() => { if (camActief) nieuweRonde(); }, 1000);
 });
+
+/* Potje afsluiten: in het dagboek zetten en de uitslag tonen */
+function eindigPotje(toonUitslag){
+  const duur = Math.round((performance.now() - potjeStart) / 1000);
+  if (aantalGevonden > 0){
+    st.dagboek.unshift({ datum: new Date().toISOString(), aantal: aantalGevonden, duur, hz: st.hz });
+    bewaarSt();
+  }
+  if (toonUitslag){
+    stopCamera();
+    $('#gevondenTekst').textContent = aantalGevonden
+      ? `${aantalGevonden} vogeltje${aantalGevonden === 1 ? '' : 's'} gevonden in ${duurTekst(duur)} bij ${st.hz} Hz. Opgeslagen in je dagboek.`
+      : `Geen vogeltje gevonden. Niets opgeslagen.`;
+    $('#gevondenOverlay').classList.add('actief');
+  }
+  aantalGevonden = 0;
+}
 $('#camStart').addEventListener('click', startCamera);
-$('#nogEens').addEventListener('click', nieuweRonde);
+$('#nogEens').addEventListener('click', startCamera);
 $('#camOpnieuw').addEventListener('click', () => { if (camActief) nieuweRonde(); });
-$('#klaar').addEventListener('click', () => kiesScherm('afstemmen'));
-$('#camStop').addEventListener('click', () => kiesScherm('afstemmen'));
+$('#klaar').addEventListener('click', () => kiesScherm('dagboek'));
+$('#camStop').addEventListener('click', () => { if (camActief) eindigPotje(true); });
 
 /* Toon uit als de app naar de achtergrond gaat; in het spel gaat hij weer aan als je terugkomt */
 document.addEventListener('visibilitychange', () => {
