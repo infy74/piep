@@ -181,7 +181,7 @@ input[type=range]::-moz-range-thumb{width:34px;height:34px;border:0;border-radiu
   <div class="overlay" id="startOverlay">
     <svg viewBox="0 0 100 100"><use href="#vogelSymbool"/></svg>
     <h1>Vogeltje zoeken</h1>
-    <p>Het vogeltje verstopt zich links of rechts van je, hooguit een kwartslag draaien. Draai met je telefoon: het geluid draait mee en piept harder en sneller als je dichterbij komt. Zie je het vogeltje? Tik erop en het wordt stil. Oortjes aanbevolen.</p>
+    <p>Het vogeltje zit eerst even recht voor je en vliegt dan weg: links of rechts, hooguit een kwartslag draaien. Draai met je telefoon: het geluid draait mee en piept harder en sneller als je dichterbij komt. Zie je het vogeltje? Tik erop en het wordt stil. Oortjes aanbevolen.</p>
     <div class="knoppen"><button id="camStart" class="primair">Start met camera</button></div>
   </div>
   <div class="overlay" id="gevondenOverlay">
@@ -518,7 +518,7 @@ function zetSleep(generiekGeprobeerd){
   c.addEventListener('pointerup', sleep.up); c.addEventListener('pointercancel', sleep.up);
 }
 function stopCamera(){
-  camActief = false; gevonden = false;
+  camActief = false; gevonden = false; intro = false; clearTimeout(introTimer);
   if (animatie) cancelAnimationFrame(animatie); animatie = null;
   window.removeEventListener('deviceorientationabsolute', verwerkOri, true);
   window.removeEventListener('deviceorientation', verwerkOri, true);
@@ -528,22 +528,33 @@ function stopCamera(){
   vogel.style.display = 'none'; Object.values(pijlen).forEach(p => p.style.display = 'none');
   warmte.style.boxShadow = 'none';
 }
+let intro = false, introTimer = null;
 function nieuweRonde(){
   gevonden = false;
-  // vogeltje hooguit een halve draai van je af: 30° tot 90° links of rechts van waar je nu kijkt
-  const kant = Math.random() < 0.5 ? -1 : 1;
-  vogelKoers = (kijkKoers + kant * (30 + Math.random() * 60) + 360) % 360;
-  // en ongeveer op ooghoogte, iets omhoog of omlaag
-  vogelHelling = klem(kijkHelling + (Math.random() * 20 - 8), -25, 30);
-  startTijd = performance.now();
   $('#gevondenOverlay').classList.remove('actief');
+  // eerst zit het vogeltje 3 tellen recht voor je in beeld, daarna vliegt hij weg
+  intro = true;
+  vogelKoers = kijkKoers; vogelHelling = kijkHelling;
+  temperatuur.textContent = 'Kijk, daar!';
   startToon('3d');
+  clearTimeout(introTimer);
+  introTimer = setTimeout(() => {
+    if (!camActief) return;
+    intro = false;
+    // verstopplek hooguit een halve draai van je af: 30° tot 90° links of rechts van waar je nu kijkt
+    const kant = Math.random() < 0.5 ? -1 : 1;
+    vogelKoers = (kijkKoers + kant * (30 + Math.random() * 60) + 360) % 360;
+    // en ongeveer op ooghoogte, iets omhoog of omlaag
+    vogelHelling = klem(kijkHelling + (Math.random() * 20 - 8), -25, 30);
+    startTijd = performance.now();
+  }, 3000);
 }
 
 function tik(){
   if (!camActief) return;
   animatie = requestAnimationFrame(tik);
   if (gevonden) return;
+  if (intro){ vogelKoers = kijkKoers; vogelHelling = kijkHelling; }   // tijdens de intro blijft hij recht voor je
   const dK = wrap(vogelKoers - kijkKoers);        // + = rechts
   const dH = vogelHelling - kijkHelling;          // + = boven
   // positie voor de 3D-panner: luisteraar kijkt naar -z
@@ -562,7 +573,7 @@ function tik(){
   if (bronGain) bronGain.gain.setTargetAtTime(aan ? sterkte : 0, ctx.currentTime, 0.02);
   const kleur = hoek < 15 ? '255,138,61' : hoek < 40 ? '255,179,71' : hoek < 90 ? '140,160,200' : '90,169,255';
   warmte.style.boxShadow = `inset 0 0 ${Math.round(20 + 120 * w)}px rgba(${kleur},${(0.25 + 0.6 * w).toFixed(2)})`;
-  temperatuur.textContent = hoek < 12 ? '🔥 Heet' : hoek < 30 ? 'Warm' : hoek < 70 ? 'Lauw' : hoek < 120 ? 'Koud' : '🧊 IJskoud';
+  if (!intro) temperatuur.textContent = hoek < 12 ? '🔥 Heet' : hoek < 30 ? 'Warm' : hoek < 70 ? 'Lauw' : hoek < 120 ? 'Koud' : '🧊 IJskoud';
   // projectie op het scherm
   const r = $('#camera').getBoundingClientRect();
   const inBeeld = Math.abs(dK) < 80 && Math.abs(dH) < 80;
@@ -580,7 +591,7 @@ function tik(){
 }
 
 vogel.addEventListener('click', () => {
-  if (gevonden) return;
+  if (gevonden || intro) return;
   gevonden = true;
   stopToon();
   vogel.style.display = 'none'; Object.values(pijlen).forEach(p => p.style.display = 'none');
